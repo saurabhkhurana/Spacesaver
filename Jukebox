@@ -1,4 +1,4 @@
-Enter file contents here
+
 AudioPlayer player;
 String song_info;
 int info_time;
