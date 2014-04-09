@@ -1,0 +1,85 @@
+Enter file contents here
+AudioPlayer player;
+String song_info;
+int info_time;
+int INFO_DURATION = PHYSICS_FPS * 6;
+int INFO_TRANSITION = PHYSICS_FPS / 2;
+PFont info_font;
+
+void jbToggleMute()
+{
+  muted = !muted;
+  if(player != null)
+  {
+    if(muted) player.mute();
+    else player.unmute();
+  }
+}
+
+void bgmDuck(float amount)
+{
+  if(player != null)
+  {
+    player.setGain(amount);
+  }
+}
+
+void bgmLoop(String filename)
+{
+  if(player != null) player.close();
+  player = minim.loadFile(filename, 2048);
+  if(muted) player.mute();
+  if(player == null)
+  {
+    System.err.println("Not found: "+filename);
+    return;
+  }
+  player.loop();
+  AudioMetaData md = player.getMetaData(); 
+  song_info = "♪ "+ md.title() + " - "+md.author();
+  info_time = INFO_DURATION;
+}
+void bgmStop()
+{
+  if(player != null)
+  {
+     player.pause();
+  }
+}
+void bgmOnce(String filename)
+{
+   if(player != null) player.close();
+  player = minim.loadFile(filename, 1024);
+    if(muted) player.mute();
+  if(player == null)
+  {
+    System.err.println("Not found: "+filename);
+    return;
+  }
+  player.play();
+  AudioMetaData md = player.getMetaData(); 
+  song_info = "♪ "+ md.title() + " - "+md.author();
+  info_time = INFO_DURATION;
+}
+
+void drawSongInfo()
+{
+  if(info_time <= 0) return;
+  
+  int offset = 0;
+  if(info_time < INFO_TRANSITION) offset = (int) map(info_time, 0, INFO_TRANSITION, 24, 0);
+  if(info_time > INFO_DURATION - INFO_TRANSITION)
+    offset = (int) map(info_time, INFO_DURATION - INFO_TRANSITION, INFO_DURATION, 0, 24);
+  textAlign(LEFT, BOTTOM);
+  fill(0, 128);
+  /*
+  text(song_info, 8, height-7+offset);
+  text(song_info, 8, height-9+offset);
+  text(song_info, 7, height-8+offset);
+  text(song_info, 9, height-8+offset);*/
+  rectMode(CORNER);
+  noStroke();
+  rect(0, height-18+offset, song_info.length()*8+16, 12);
+  fill(192, 255, 192);
+  text(song_info, 8, height-8+offset);
+}
