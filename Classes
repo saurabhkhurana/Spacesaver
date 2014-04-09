@@ -1,0 +1,181 @@
+Enter file contents here
+float FIREBALL_DESCEND_SPEED = .15;
+float FIREBALL_MAX_OMEGA = 1.3;
+float FIREBALL_SPAWN_RADIUS = 400;
+float FIREBALL_RADIUS = 20;
+
+float DESSERT_RADIUS = 60;
+float WARN_RADIUS = 180;
+
+int SHOT_LIFE = 120;
+
+class ComboTag extends Particle
+{
+  int a;
+  ComboTag(int amt)
+  {
+    super(new PVector(width/2, height/4), new PVector(0, -0.15), 270);
+    a = amt;
+  }
+  void draw()
+  {
+    fill(255*life/maxlife, 255, 255, 255*life/maxlife);
+    textAlign(CENTER, CENTER);
+    text(a+" COMBO", pos.x, pos.y);
+  }
+}
+
+class IceTrail extends Particle
+{
+  IceTrail(PVector p)
+  {
+    super(p, randomVector(0.3), 180);
+  }
+  void draw()
+  {
+    noStroke();
+    fill(255*life/maxlife, 512*life/maxlife, 255);
+    ellipse(pos.x, pos.y, 5*life/maxlife, 5*life/maxlife);
+  }
+}
+class FireTrail extends Particle
+{
+  FireTrail(PVector p)
+  {
+    super(p, randomVector(0.3), 60);
+  }
+  void draw()
+  {
+    noStroke();
+    fill(255, 512*life/maxlife, 255*life/maxlife);
+    ellipse(pos.x, pos.y, FIREBALL_RADIUS*life/maxlife, FIREBALL_RADIUS*life/maxlife);
+  }
+}
+class FireBurst extends Particle
+{
+  FireBurst(PVector p)
+  {
+    super(p, randomVector(0), 60);
+  }
+  void draw()
+  {
+    stroke(255, 512*life/maxlife, 255*life/maxlife);
+    strokeWeight(2);
+    noFill();
+    smooth();
+    ellipse(pos.x, pos.y, FIREBALL_RADIUS * (6 -5.0*life/maxlife), FIREBALL_RADIUS * (6 -5.0*life/maxlife));
+    noSmooth();
+  }
+}
+
+
+
+
+class Coldshot extends GameObject
+{
+  PVector vel;
+  int lifetime;
+  int combo;
+  Coldshot(PVector p, PVector v)
+  {
+    pos = p.get();
+    vel = v.get();
+    lifetime = SHOT_LIFE;    
+    combo = 0;
+    radius = 10;
+  }
+  void tick()
+  {
+    pos.add(vel);
+    lifetime --;
+    if(lifetime <= 0) 
+    {
+      removal_flag = true;
+      if(combo > 1) 
+      {
+        particles.add(new ComboTag(combo));
+        if(!muted) comboSound.trigger();
+        points((combo * (combo - 1))/2);
+      }
+    }
+    particles.add(new IceTrail(pos));
+   for(GameObject g : fireballs)
+    {
+        if(inRadius(pos, g.pos, radius+g.radius))
+        {
+          g.removal_flag = true;
+          if(!muted) popSound.trigger();
+          particles.add(new FireBurst(g.pos));
+          points(1);
+          
+          combo++;
+        }
+      
+    }
+
+    
+  }
+  void draw()
+  {
+    fill(255, 255, 255);
+    noStroke();
+    pushMatrix();
+    translate(pos.x, pos.y);
+    rotate(phys_clock * 0.1);
+    rectMode(RADIUS);
+    rect(0, 0, 7, 7);
+    popMatrix();
+  }
+}
+class Fireball extends GameObject
+{
+  float r;
+  float theta;
+  float omega;
+  Fireball()
+  {
+    radius = FIREBALL_RADIUS;
+    
+    r = FIREBALL_SPAWN_RADIUS;
+    theta = random(TAU);
+    omega = random(FIREBALL_MAX_OMEGA*2)-FIREBALL_MAX_OMEGA;
+    pos = new PVector(r*cos(theta) + width/2, r*sin(theta) + height/2);
+  }
+  void tick()
+  {
+    r -= FIREBALL_DESCEND_SPEED;
+    if(r < DESSERT_RADIUS)
+    {
+       removal_flag = true; // hit center, todo stuff later
+       if(!muted)burntSound.trigger();
+       burnt_timer = BURNT_TIME;
+       for(GameObject g : fireballs)
+       {
+         g.removal_flag = true;
+       }
+       game_over = true;
+       score = 0;
+       difficulty_timer = 0;
+    }
+       
+    theta += omega / r;
+    pos = new PVector(r*cos(theta) + width/2, r*sin(theta) + height/2);    
+    if(phys_clock % 6 == 0) particles.add(new FireTrail(pos));
+  }
+  void draw()
+  {
+    if(r < WARN_RADIUS)
+    {
+      float perc = map (r, WARN_RADIUS, DESSERT_RADIUS, 0, 1);
+      noFill();
+      stroke(255, 0, 0, 255*perc);
+      strokeWeight(2);
+      ellipse(width/2, height/2, r, r);
+      ellipse(pos.x, pos.y, radius*1.5, radius*1.5);
+    }
+    
+    noStroke();
+    fill(255);
+    ellipse(pos.x, pos.y, radius, radius);
+  }
+}
