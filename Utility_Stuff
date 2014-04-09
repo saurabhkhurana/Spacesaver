@@ -1,0 +1,169 @@
+Enter file contents here
+import java.util.Iterator;
+
+final float TAU = TWO_PI;
+class GameList extends ArrayList<GameObject>
+{
+  void tick()
+  {
+    Iterator i = iterator();
+    while(i.hasNext())
+    {
+      GameObject p = (GameObject) i.next();
+      p.tick();
+      if(p.removal_flag) i.remove();
+    }
+  }
+  void draw()
+  {
+    Iterator i = iterator();
+    while(i.hasNext())
+    {
+      GameObject p = (GameObject) i.next();
+      p.draw();
+    }
+  }
+}
+
+abstract class GameObject
+{
+  abstract void tick();
+  abstract void draw();
+  PVector pos;
+  float radius;
+  boolean removal_flag = false;
+}
+
+class ParticleList extends ArrayList
+{
+  void tick()
+  {
+    Iterator i = iterator();
+    while(i.hasNext())
+    {
+      Particle p = (Particle) i.next();
+      p.tick();
+      if(p.life <= 0) i.remove();
+    }
+  }
+  void draw()
+  {
+    Iterator i = iterator();
+    while(i.hasNext())
+    {
+      Particle p = (Particle) i.next();
+      p.draw();
+    }
+  }
+}
+
+boolean inRadius(PVector a, PVector b, float rad)
+{
+  return rad*rad > (a.x - b.x)*(a.x - b.x) + (a.y - b.y) * (a.y - b.y);// + (a.z - b.z) * (a.z - b.z);
+}
+
+abstract class Particle
+{
+  PVector pos;
+  PVector vel;
+  PVector accel;
+  int life;
+  int maxlife;
+  Particle(PVector p, PVector v, int lifetime)
+  {
+    this(p, v, new PVector(0, 0), lifetime);
+  }
+  Particle(PVector p, PVector v, PVector a, int lifetime)
+  {
+    accel = new PVector(a.x, a.y);
+    pos = new PVector(p.x, p.y);
+    vel = new PVector(v.x, v.y);
+    life = maxlife = lifetime;
+  }
+  void tick()
+  {
+    vel.add(accel);
+    pos.add(vel);
+    life--;
+  }
+  abstract void draw();
+}
+
+PVector proj(PVector src, PVector dest)
+{
+  return PVector.mult(dest, src.dot(dest)/dest.dot(dest));
+}
+
+void regPoly(float x, float y, float r, int sides, float rot)
+{
+  beginShape();
+  for(int i = 0; i < sides; i++)
+  {
+    float segAngle = TWO_PI/sides;
+    vertex(cos(i*segAngle + rot) * r + x,  sin(i*segAngle + rot) * r + y);
+  }
+  endShape(CLOSE);
+}
+PVector randomVector(float magn)
+{
+  float angle = random(TWO_PI);
+  return new PVector(cos(angle)*magn, sin(angle)*magn);
+}
+
+float angleTowards(float current, float desired, float stepsize)
+{
+  float diff = desired - current;
+  while(diff < 0) diff+=TWO_PI;
+  while(diff >= TWO_PI) diff-=TWO_PI;
+  if(diff < stepsize || diff > TWO_PI - stepsize) return desired;
+  if(diff < PI) return current + stepsize;
+  else return current - stepsize;
+}
+
+color blendColors(color a, color b, float blent)
+{
+  return color(red(a)*(1-blent)+red(b)*(blent), green(a)*(1-blent)+green(b)*(blent), blue(a)*(1-blent)+blue(b)*(blent));
+}
+
+void mosaic(int blocksize)
+{
+  if(blocksize < 1) blocksize = 1;
+  loadPixels();
+  for(int x = 0; x < width; x++)  for(int y = 0; y < height; y++)
+  {
+    pixels[x + y*width] = pixels[x/blocksize*blocksize + y/blocksize*blocksize*width];
+  }
+  updatePixels();
+}
+void iris(int cx, int cy, int radius)
+{
+  loadPixels();
+  for(int x = 0; x < width; x++)  for(int y = 0; y < height; y++)
+  {
+    if((x-cx)*(x-cx)+(y-cy)*(y-cy)>radius*radius)
+      pixels[x + y*width] = color(0);
+  }
+  updatePixels();  
+}
+void diamonds(float amount)
+{  
+  // background(255);
+  loadPixels();
+  for(int x = 0; x < width; x++) for(int y = 0; y < height; y++)
+  {
+    if((
+    (abs(x-width/2)%32+abs(y-height/2)%32)+abs(x-width/2)/32*3+(abs(y-height/2)/32*3)
+      ) > amount)
+      pixels[x + y*width] = color(0);//color(0);
+  }
+  updatePixels();
+}
+void drawCharge(float x, float y, float ratio, float radius, float circleSize, int numCircles)
+{
+  float angle = (ratio * TWO_PI);
+  for(int i = 0; i<numCircles; i++)
+  {
+    ellipse(cos(angle)*radius*(1-ratio)+x, sin(angle)*radius*(1-ratio)+y, circleSize*(ratio), circleSize*(ratio));
+    angle += TWO_PI/numCircles;
+  }
+}
