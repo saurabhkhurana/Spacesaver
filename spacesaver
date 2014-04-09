@@ -1,0 +1,363 @@
+Enter file contents here
+import ddf.minim.*;
+
+PVector anchor;
+int fireball_timer;
+int charge_timer;
+int SHOT_COOLDOWN = 90;
+float SHOT_MINDIST = 60;
+int cooldown_timer;
+int score_timer;
+int SCORE_TIME = 30;
+int BURNT_TIME = 90;
+int APPEAR_TIME = 360;
+int burnt_timer;
+boolean[] keys = new boolean[256];
+boolean title;
+boolean paused;
+boolean muted;
+boolean game_over;
+int score;
+int top_score;
+int difficulty_timer = 0;
+
+int drawing_ms_last;
+int physics_ms_last;
+int CORE_FPS = 540;
+int DRAWING_FPS = 60;
+int PHYSICS_FPS = 180;
+int DRAW_MS = 1000 / DRAWING_FPS;
+int PHYS_MS = 1000 / PHYSICS_FPS;
+int phys_clock;
+
+Minim minim;
+
+AudioSample comboSound;
+AudioSample popSound;
+AudioSample shotSound;
+AudioSample burntSound;
+AudioSample appearSound;
+
+
+GameList fireballs = new GameList();
+GameList shots = new GameList();
+ParticleList particles = new ParticleList();
+
+
+PImage crosshair;
+
+
+void setup()
+{
+  size(720, 480);
+  frameRate(600);
+  crosshair = loadImage("crosshair.png");
+  audioInit();
+  setTitle();
+}
+
+void audioInit()
+{
+  minim = new Minim(this);
+  comboSound = minim.loadSample("combo.wav", 1024);
+  popSound = minim.loadSample("pop.wav", 1024);  
+  shotSound = minim.loadSample("shot.wav", 1024);  
+  shotSound.setGain(-10);
+
+  burntSound = minim.loadSample("burnt.wav", 1024);  
+  appearSound = minim.loadSample("appear.wav", 1024);  
+}
+
+
+void setTitle()
+{
+  title = true;
+  game_over = true;
+}
+
+
+
+
+void draw()
+{
+  if(game_over)
+  {
+    background(200, 100, 70);
+    fill(255);
+    textAlign(CENTER, CENTER);
+    text("Press Enter To Start The Game", width/2, height/2);
+  }
+  else
+  {
+    cursor(crosshair);
+    while(physics_ms_last + PHYS_MS < millis())
+    {
+      if(!paused)
+      {
+        physicsStep();
+      }
+      physics_ms_last += PHYS_MS;
+    }
+    if(drawing_ms_last + DRAW_MS < millis())
+    {
+      drawingStep();
+      drawing_ms_last = millis();
+    }
+  }
+}
+
+void physicsStep()
+{
+  phys_clock++;
+  
+  if(!title)
+  {
+    //main game loop
+    fireballs.tick();
+    shots.tick();
+    particles.tick();
+    
+    fireball_timer --;
+    if(fireball_timer <= 0)
+    { 
+      fireball_timer = fireTime();
+      fireballs.add(new Fireball());
+    }
+    
+    if(mousePressed) 
+      charge_timer++;
+    else 
+      charge_timer = 0;
+    
+    cooldown_timer --;
+    difficulty_timer++;
+    if(score_timer > 0) 
+      score_timer--;
+    
+    burnt_timer--;
+    
+    if(burnt_timer == -APPEAR_TIME) if(!muted) appearSound.trigger();
+        
+    top_score = max(score, top_score);
+  }
+  
+  //jukebox stuff
+  info_time --;
+}
+
+
+
+
+
+
+
+void points(int pts)
+{
+  score += pts;
+  score_timer = max(score_timer, SCORE_TIME);
+}
+
+
+int fireTime()
+{
+  return PHYSICS_FPS * 10 / (7 + difficulty_timer / (PHYSICS_FPS * 15));
+}
+
+
+
+void audioClose()
+{
+  comboSound.close();
+  popSound.close();
+  shotSound.close();
+  burntSound.close();
+  minim.stop();
+}
+
+
+
+
+void newGame()
+{
+  fireballs.clear();
+  
+  cooldown_timer = 0;
+  charge_timer = 0;
+  fireball_timer = 0;
+  difficulty_timer = 0;
+  score_timer = 0;
+  burnt_timer = 0;
+  
+  game_over = false;
+  title = false;
+  score = 0;
+}
+
+void stop()
+{
+  audioClose();
+  super.stop();
+}
+
+void mousePressed()
+{
+  if(!paused && !title)
+  {
+    anchor = new PVector(mouseX, mouseY);
+  }
+  if(title) newGame();
+}
+
+void mouseReleased()
+{
+  if(!paused && !title && anchor != null && cooldown_timer <= 0)
+  {
+    PVector shotangle = new PVector(anchor.x - mouseX, anchor.y - mouseY);
+    shotangle.normalize();
+    shotangle.mult(10);
+    if(shotangle.mag() > 0 && PVector.dist(new PVector(mouseX, mouseY), anchor) > SHOT_MINDIST)
+    {
+     shots.add(new Coldshot(new PVector(mouseX, mouseY), shotangle));
+     cooldown_timer = SHOT_COOLDOWN;
+     if(!muted) shotSound.trigger();
+    }
+  }
+}
+
+
+void drawingStep()
+{
+  if(title)
+  {
+    drawTitle();
+  }
+  else
+  { 
+    background(32, 0, 64);
+    ellipseMode(RADIUS);
+    fill(0, 192, 255, 24);
+    stroke(0, 192, 255, 48);
+    strokeWeight(2);
+    ellipse(width/2, height/2, 60, 60);
+    
+    //This is for the thing in the center
+    fill(204, 102, 0);
+    noStroke();
+    ellipse(width/2, height/2, 30, 30);
+    
+    
+    /*ellipse(width/2, height/2, DESSERT_RADIUS, DESSERT_RADIUS);
+    fill(230, 250, 250);
+    noStroke();
+    if(burnt_timer < -APPEAR_TIME)
+    {
+       ellipse(width/2, min(height/2-18, -(burnt_timer +APPEAR_TIME) + height/2 - 50), 20, 20);
+    }
+    fill(192, 128, 64);
+    triangle(width/2 - 16, height/2 - 8, width/2 + 16, height/2 - 8, width/2, height/2 + 32); 
+    */
+    particles.draw();
+    fireballs.draw();
+    shots.draw();
+    smooth();
+    if(mousePressed && anchor != null)
+    {
+      noFill();
+      stroke(255, 128);
+      if(PVector.dist(new PVector(mouseX, mouseY), anchor) > SHOT_MINDIST) stroke(96, 255, 255);
+      strokeWeight(1);
+      ellipse(anchor.x, anchor.y, 10, 10);
+      PVector lead = new PVector(anchor.x - mouseX, anchor.y - mouseY);
+      lead.normalize();
+      lead.mult(1000);
+      lead.add(anchor);
+      line(anchor.x, anchor.y, mouseX, mouseY);
+      
+      stroke(255, 32);
+      if(PVector.dist(new PVector(mouseX, mouseY), anchor) > SHOT_MINDIST) stroke(96, 255, 255, 64);
+      line(anchor.x, anchor.y, lead.x, lead.y);
+    }
+    else
+    {
+      noFill();
+      stroke(255, 128);
+      strokeWeight(1);
+      ellipse(mouseX, mouseY, 12, 12);
+    }
+    noSmooth();
+    
+    if(burnt_timer > 0)
+    {
+    fill(255, 512*burnt_timer/BURNT_TIME, 255*burnt_timer/BURNT_TIME, 255*burnt_timer/BURNT_TIME);
+    noStroke();
+    rectMode(CORNERS);
+    rect(0, 0, width, height);
+    }
+    
+    fill(255, 128 + 127* score_timer / SCORE_TIME);
+    textAlign(RIGHT, TOP);
+    text(score, width-8, 8);
+    fill(255, 128);
+    text("top: "+top_score, width-8, 24);
+    
+    
+    if(paused) drawPauseOverlay();
+  }
+  
+  //jukebox stuff
+  drawSongInfo();
+}
+
+void drawTitle()
+{
+  background(200, 100, 70);
+  fill(255);
+  textAlign(CENTER, CENTER);
+  text("Dessert Stressed", width/2, height/2);
+  text("Use your chillshot to defend\nyour ice cream from fireballs.", width/2, height*2/3);
+}
+
+void drawPauseOverlay()
+{
+  rectMode(CORNER);
+  strokeWeight(1);
+  noStroke();
+  fill(0, 128);
+  rect(0, 0, width, height);
+  fill(255);
+  textAlign(CENTER, CENTER);
+  text("[ PAUSED ]", width/2, height/2);
+}
+
+
+
+
+void keyPressed()
+{
+  if(keyCode < 256)
+  if(!keys[keyCode]) 
+  {
+    keys[keyCode] = true;
+    down(keyCode);
+  }
+}
+void keyReleased()
+{
+  if(keyCode < 256)
+  if(keys[keyCode])
+  {
+    keys[keyCode] = false;
+    up(keyCode);
+  }
+}
+void down(int theKey)
+{
+  println(theKey + " down");
+  if(theKey == 'M') jbToggleMute();
+  if(theKey == 'P' && !title) paused = !paused;
+  if(theKey == ENTER && game_over) newGame();
+}
+void up(int theKey)
+{
+  println(theKey + " up");
+}
