@@ -1,4 +1,4 @@
-Enter file contents here
+
 float FIREBALL_DESCEND_SPEED = .15;
 float FIREBALL_MAX_OMEGA = 1.3;
 float FIREBALL_SPAWN_RADIUS = 400;
